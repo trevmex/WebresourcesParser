@@ -14,20 +14,24 @@ class UrlParser
   end
   
   def parse_url
-    response = RestClient.get(url.to_s)
+    begin
+      response = RestClient.get(url.to_s)
 
-    unless (response.nil? || response.empty?)
-      self.html = Nokogiri::HTML(response.body) 
+      unless (response.nil? || response.empty?)
+        self.html = Nokogiri::HTML(response.body) 
 
-      self.links = parse_links
-      self.ids = parse_ids
-      self.classes = parse_classes
+        self.links = parse_links
+        self.ids = parse_ids
+        self.classes = parse_classes
+      end
+    rescue
+      STDERR.puts "Couldn't get page '#{url}'"
     end
   end
 
   def parse_style
     self.used_selectors   = [] unless defined?(@used_selectors)
-    self.unused_selectors = [] unless defined?(@unused_selectors)
+    #self.unused_selectors = [] unless defined?(@unused_selectors)
 
     links.each do |link|
       style_url = set_url_defaults(URI.parse(link.content))
@@ -41,14 +45,22 @@ class UrlParser
         begin
           element = html.css(selector)
           
-          if element.length == 0
-            self.unused_selectors
-          else
-            self.used_selectors
-          end << {:selector     => selector,
-                  :declarations => declarations,
-                  :specificity  => specificity,
-                  :frequency    => element.length}
+          if element.length > 0
+            self.used_selectors << selector
+            
+            #{:selector     => selector,
+            # :declarations => declarations,
+            # :specificity  => specificity,
+            # :frequency    => element.length}
+          end
+          #if element.length == 0
+          #  self.unused_selectors
+          #else
+          #  self.used_selectors
+          #end << {:selector     => selector,
+          #        :declarations => declarations,
+          #        :specificity  => specificity,
+          #        :frequency    => element.length}
         rescue
           STDERR.puts "Couldn't parse selector '#{selector}'"
         end
@@ -56,9 +68,9 @@ class UrlParser
     end
 
     self.used_selectors   = self.used_selectors.uniq
-    self.unused_selectors = self.unused_selectors.uniq
+    #self.unused_selectors = self.unused_selectors.uniq
 
-    [self.used_selectors, self.unused_selectors]
+    #[self.used_selectors, self.unused_selectors]
   end
 
   private
